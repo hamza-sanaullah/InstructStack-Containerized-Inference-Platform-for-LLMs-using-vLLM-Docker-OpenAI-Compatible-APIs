@@ -1,0 +1,142 @@
+# TinyLlama/TinyLlama-1.1B-Chat-v1.0
+# microsoft/phi-2
+# Command to make a virtual environment for vllm
+# python -m venv vllm_env
+# For Activation
+# .\vllm_env\Scripts\activate
+# Launching a vllm server
+# python -m vllm.entrypoints.openai.api_server --model models/gpt2 --port 8000
+
+# For successfully running on power shell
+# Set-ExecutionPolicy RemoteSigned
+
+
+
+# Commands for virtual environment in cmd
+# cd "C:\Users\Hamza\Downloads\Digifloat Internship\DG Project\Instructstack"
+# vllm_env\Scripts\activate.bat
+
+
+# pip install --no-cache-dir vllm huggingface_hub[hf_xet] requests
+
+# python -m vllm.entrypoints.openai.api_server --model models/gpt2 --port 8000
+#
+
+
+https://docs.vllm.ai/en/stable/getting_started/installation/cpu.html#related-runtime-environment-variables
+
+conda create --prefix ./env python=3.11
+docker build --network=host -t vllm-cpu-image .
+docker --version
+
+systemctl status docker.service
+{
+  "dns": ["8.8.8.8", "8.8.4.4"]
+  "ipv6": false
+}
+sudo systemctl restart docker
+sudo nano /etc/docker/daemon.json
+
+
+C:\Users\Hamza\AppData\Local\Packages\CanonicalGroupLimited.Ubuntu24.04LTS_79rhkp1fndgsc\LocalState\ext4.vhdx
+C:\Users\Hamza\AppData\Local\Docker\wsl\disk\docker_data.vhdx
+docker system prune -a
+docker build --cache-from vllm-cpu-image -t vllm-cpu-image .
+hamzaak4/vllm-cpu-image
+
+
+Optimize-VHD -Path "C:\Users\Hamza\AppData\Local\Docker\wsl\disk\docker_data.vhdx" -Mode Full
+wsl --shutdown
+docker system df
+Optimize-VHD -Path "C:\Users\Hamza\AppData\Local\Docker\wsl\disk\docker_data.vhdx" -Mode Full
+docker system prune -a --volumes
+docker system prune -a --volumes -ftasklist | findstr "vmmem"
+Optimize-VHD -Path "C:\Users\Hamza\AppData\Local\Packages\CanonicalGroupLimited.Ubuntu24.04LTS_79rhkp1fndgsc\LocalState\ext4.vhdx" -Mode Full
+(Get-Item "C:\Users\Hamza\AppData\Local\Packages\CanonicalGroupLimited.Ubuntu24.04LTS_79rhkp1fndgsc\LocalState\ext4.vhdx").length / 1GB
+docker build --cache-from vllm-cpu-image -t vllm-cpu-image .
+
+
+docker run -it --rm --privileged --network=host hamzaak4/vllm-cpu-image /bin/bash
+unset LD_PRELOAD
+vllm serve facebook/opt-125m --port 8000 --device cpu --dtype float32
+conda activate vllm_env
+export VLLM_CPU_OMP_THREADS_BIND=0-3
+export VLLM_DISABLE_TRITON=1
+export VLLM_CPU_KVCACHE_SPACE=2
+
+docker run -it --rm --privileged -p8000:8000 --name vLLm_test hamzaak4/vllm-cpu-image:Latest /bin/bash
+ vllm serve sshleifer/tiny-gpt2 --device cpu --port 8000 --dtype float32 --enforce-eager
+
+ curl http://localhost:8000/v1/completions \000/v1/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+        "model": "facebook/opt-125m",
+        "prompt": "Once upon a time",
+        "max_tokens": 20
+      }'
+
+conda install -c conda-forge libstdcxx-ng
+python -m vllm.entrypoints.openai.api_server \
+  --model facebook/opt-125m \
+  --device cpu \
+  --host 0.0.0.0 \
+  --port 8000
+
+export VLLM_DISABLE_PREFIX_CACHE=1
+export VLLM_DISABLE_CHUNKED_PREFILL=1
+pip uninstall vllm -y
+export VLLM_DISABLE_CUSTOM_OPS=1
+vllm serve --model sshleifer/tiny-gpt2 --device cpu --port 8000 --dtype float32
+curl -X POST http://localhost:8000/v1/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"sshleifer/tiny-gpt2","prompt":"Once upon a time","max_tokens":20}'
+VLLM_TARGET_DEVICE=cpu python setup.py develop
+
+
+Docker volumes  Content
+docker run --rm -it -v vllm_model_store:/models ubuntu bash
+docker volume inspect vllm_model_store
+ls /models 
+cp -r /src/* /models/
+docker run --rm -it \
+  -v vllm_model_store:/models \
+  -v $(pwd)/models:/src \
+  ubuntu bash
+docker volume inspect vllm_model_store
+docker volume ls
+docker volume create vllm_model_store
+
+Pushing to docker hub by building
+docker buildx build --platform linux/amd64 --push -t hamzaak4/vllm-cpu-image:Latest1.1 .
+
+
+cmd = f"""
+    docker run -d --rm --privileged --name vllm_server \
+  -p 8000:8000 \
+  -v vllm_model_store:/models \
+  hamzaak4/vllm-cpu-image:Latest1.1 \
+  bash -c "source /opt/conda/etc/profile.d/conda.sh && \
+           conda activate vllm_env && \
+           vllm serve /models/{model_path} --device cpu --host 0.0.0.0 --port 8000"
+    """
+
+
+docker exec -it vllm_server ls -l /models/facebook/opt-125m/
+
+
+
+
+
+Prometheus Commands
+docker exec -it prometheus curl http://vllm:8000/metrics
+docker exec -it prometheus curl http://fastapi_app:9000/metrics
+
+node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes
+node_memory_MemAvailable_bytes
+rate(node_cpu_seconds_total{mode!="idle"}[1m])
+node_memory_MemAvailable_bytes
+http_server_duration_seconds_bucket
+http_server_requests_total{method="POST",path="/predict"}\
+
+docker-compose run prometheus wget vllm:8000/metrics
+docker-compose run prometheus wget fastapi_app:9000/metrics

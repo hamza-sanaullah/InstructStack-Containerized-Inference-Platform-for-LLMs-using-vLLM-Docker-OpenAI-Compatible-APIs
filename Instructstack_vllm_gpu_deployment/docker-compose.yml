@@ -1,0 +1,127 @@
+version: '3.8'
+
+services:
+  vllm:
+    image: vllm-gpu-image
+    container_name: vllm_server
+    runtime: nvidia
+    volumes:
+      - ./models:/models
+    environment:
+      DEFAULT_MODEL: yasserrmd/Text2SQL-1.5B
+      PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+      NVIDIA_VISIBLE_DEVICES: 0
+
+    command: >
+      bash -c "source /opt/conda/etc/profile.d/conda.sh &&
+               conda activate vllm_env &&
+               vllm serve /models/$$DEFAULT_MODEL --max-num-seqs 10 --port 8000 --gpu-memory-utilization 0.3"
+               
+    ports:
+      - "8000:8000"
+    networks:
+      - vllm-net
+    restart: "no"  # ensures container is removed unless you override with --rm
+  # vllm1:
+  #   image: vllm-gpu-image
+  #   container_name: vllm_server1
+  #   runtime: nvidia
+    
+  #   volumes:
+  #     - ./models:/models
+  #   environment:
+  #     DEFAULT_MODEL: premai-io/prem-1B-SQL
+  #     PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+  #     NVIDIA_VISIBLE_DEVICES: 0
+
+  #   command: >
+  #     bash -c "source /opt/conda/etc/profile.d/conda.sh &&
+  #              conda activate vllm_env &&
+  #              vllm serve /models/$$DEFAULT_MODEL --max-num-seqs 1 --port 8001 --gpu-memory-utilization 0.3 --max-model-len 2048"
+               
+  #   ports:
+  #     - "8001:8001"
+  #   networks:
+  #     - vllm-net
+  #   restart: "no"  # ensures container is removed unless you override with --rm
+  fastapi_app:
+    image: fastapi-vllm:Latest
+    container_name: fastapi-app
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./models:/models
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      LOGFIRE_TOKEN: pylf_v1_eu_N7j4J9MSp9Z02gWs10RYKdwK70LccbgcjZzrX8CkPdZy
+      VLLM_API_URL:  http://vllm:8000/v1/completions
+      # - VLLM_API_URL=http://vllm1:8001/v1/completions
+      # - HOST_MODEL_PATH=/home/hamza/Instructstack/models  
+    depends_on:
+      - vllm
+    networks:
+      - vllm-net
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - vllm-net
+    
+
+  node_exporter:
+    image: prom/node-exporter
+    container_name: node_exporter
+    ports:
+      - "9100:9100"
+    networks:
+      - vllm-net
+
+  
+    
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - vllm-net
+    volumes:
+      - grafana-storage:/var/lib/grafana
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+      - "8081:8080"
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/lib/docker/image:/var/lib/docker/image:ro
+      - /var/lib/docker/overlay2:/var/lib/docker/overlay2:ro
+    networks:
+      - vllm-net
+  dcgm-exporter:
+    image: nvidia/dcgm-exporter:latest
+    container_name: dcgm_exporter
+    runtime: nvidia
+    ports:
+      - "9400:9400"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    networks:
+      - vllm-net
+
+
+networks:
+  vllm-net:
+    driver: bridge
+
+volumes:
+  grafana-storage:    

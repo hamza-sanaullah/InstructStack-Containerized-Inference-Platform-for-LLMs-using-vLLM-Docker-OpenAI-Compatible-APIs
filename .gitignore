@@ -1,0 +1,35 @@
+# Ignore model files
+models/
+*.bin
+*.pt
+*.pth
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+env/
+venv/
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints
+
+# Docker
+*.log
+*.pid
+*.seed
+*.pid.lock
+*.sock
+
+# System files
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# Environment files
+.env
+TXT

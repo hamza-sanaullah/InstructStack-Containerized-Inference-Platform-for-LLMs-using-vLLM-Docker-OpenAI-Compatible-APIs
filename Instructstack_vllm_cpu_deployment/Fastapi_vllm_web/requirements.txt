@@ -1,0 +1,7 @@
+fastapi
+fastapi[standard]
+uvicorn[standard]
+requests
+jinja2
+docker
+prometheus-fastapi-instrumentator

@@ -1,0 +1,35 @@
+# Ignore local virtual env
+env/
+
+# Ignore models folder (can be downloaded inside container later if needed)
+models/
+
+# Ignore web UI stuff (not needed in this image)
+open-webui/
+open-webui-fix/
+vLLM_worker/
+vllm_source
+
+# Ignore Python bytecode and cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore logs, checkpoints, unnecessary files
+*.log
+*.ckpt
+*.pt
+*.tar.gz
+*.zip
+
+# Ignore Python notebooks and history
+*.ipynb
+.ipynb_checkpoints/
+
+# Ignore git and version control
+.git/
+.gitignore
+
+# Ignore Docker-related junk
+.dockerignore
+docker-compose.yml

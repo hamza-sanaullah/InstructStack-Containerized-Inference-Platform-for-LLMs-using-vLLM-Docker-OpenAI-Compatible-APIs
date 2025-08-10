@@ -1,0 +1,13 @@
+fastapi
+fastapi[standard]
+uvicorn[standard]
+requests
+jinja2
+docker
+asyncio
+tiktoken
+prometheus-fastapi-instrumentator
+logfire[fastapi]
+logfire[requests]
+logfire[httpx]
+logfire

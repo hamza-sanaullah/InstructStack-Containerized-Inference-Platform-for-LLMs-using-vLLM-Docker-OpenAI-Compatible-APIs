@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>vLLM Prompt Tester</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+
+   <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous"> -->
+
+    
+</head>
+
+<body>
+    <div>
+        
+    </div>
+    
+    <h1 style="color: white;">vLLM Prompt Tester</h1>
+
+        <form method="post" action="/generate">
+        <label for="model">Select Model:</label>
+        <select name="model" required>
+            {% for m in models %}
+            <option value="{{ m }}" {% if selected_model == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="prompt">Prompt:</label>
+        <textarea name="prompt" required>{{ prompt or '' }}</textarea>
+
+        <label for="max_tokens">Max Tokens:</label>
+        <input type="number" name="max_tokens" value="{{ max_tokens or 50 }}" min="1" max="512" />
+
+        <input type="submit" value="Generate">
+    </form>
+
+
+        {% if response %}
+        <div class="response-box">
+            <h2>Model Response</h2>
+            <p>{{ response }}</p>
+        </div>
+        {% endif %}
+        <form method="post" action="/check-concurrency">
+            <button type="submit">Check Concurrency</button>
+        </form>
+        {% if concurrency_result %}
+        <div class="response-box">
+            <h2>Concurrency Test Results</h2>
+            <ul>
+                {% for line in concurrency_result %}
+                <li>{{ line }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+</body>
+</html>
