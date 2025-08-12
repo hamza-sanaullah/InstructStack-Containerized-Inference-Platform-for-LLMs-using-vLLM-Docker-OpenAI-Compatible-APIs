@@ -19,7 +19,7 @@ services:
       - vllm-net
 
   fastapi_app:
-    image: fastapi_vllm_cpu:Latest
+    image: hamzaak4/fastapi_vllm_cpu:Latest
     container_name: fastapi-app
     ports:
       - "9000:9000"
