@@ -31,5 +31,8 @@ Thumbs.db
 .vscode/
 
 # Environment files
-.env
+
 TXT
+AUDIT_README.md
+
+

@@ -205,6 +205,129 @@ Each model runs in a **separate container** with dedicated resources:
 - Docker Compose v3.8+
 - At least 8GB GPU memory (recommended)
 
+### Environment Variables Configuration
+
+The project uses environment variables for flexible configuration. You can configure VLLM parameters, GPU settings, and API endpoints without modifying the docker-compose.yml file.
+
+#### Configuration Methods
+
+**Option 1: .env File (Recommended)**
+```bash
+# The .env file is already created for you
+# Just edit it with your desired values
+nano .env
+```
+
+**Option 2: Terminal Export**
+```bash
+# Set variables in your terminal before running docker-compose
+export MAX_NUM_SEQS=20
+export GPU_MEMORY_UTILIZATION=0.5
+export LOGFIRE_TOKEN="your_actual_logfire_key_here"
+export NVIDIA_VISIBLE_DEVICES=1
+
+# Then run docker-compose
+docker-compose up
+```
+
+**Option 3: Direct Command Line**
+```bash
+# Set variables directly in the same command line as docker-compose
+# This means setting the variable and running docker-compose in one line
+MAX_NUM_SEQS=20 GPU_MEMORY_UTILIZATION=0.5 docker-compose up
+```
+
+#### Running with Default Values
+If you want to run the project with the default configuration values defined in docker-compose.yml, simply run:
+```bash
+docker-compose up
+```
+
+#### Customizing Configuration
+If you want to customize VLLM parameters, GPU settings, or API endpoints, you can use environment variables in two ways:
+
+#### Key Configurable Variables
+
+| Variable | Default | Description | Example |
+|----------|---------|-------------|---------|
+| `MAX_NUM_SEQS` | 10 | Maximum concurrent sequences | `20` for high throughput |
+| `VLLM_PORT` | 8000 | Primary VLLM server port | `8000` |
+| `GPU_MEMORY_UTILIZATION` | 0.3 | GPU memory usage (0.0-1.0) | `0.5` for balanced usage |
+| `MAX_MODEL_LEN` | 2048 | Maximum sequence length | `4096` for longer contexts |
+| `NVIDIA_VISIBLE_DEVICES` | 0 | GPU device ID | `1` for second GPU |
+| `DEFAULT_MODEL` | yasserrmd/Text2SQL-1.5B | Primary model | Custom model path |
+| `LOGFIRE_TOKEN` | - | Your Logfire serve key | `pylf_v1_...` |
+| `MODEL_REPO_ID` | premai-io/prem-1B-SQL | Model to download | Custom Hugging Face model |
+| `MODEL_LOCAL_DIR` | models/premai-io/prem-1B-SQL | Local model directory | Custom local path |
+| `MODEL_USE_SYMLINKS` | False | Use symlinks for models | True/False |
+| `MODELS_TO_DOWNLOAD` | - | Multiple models (comma-separated) | "model1,model2,model3" |
+
+#### Secondary VLLM Service Variables
+For the second VLLM container (vllm1), use variables with `_1` suffix:
+- `MAX_NUM_SEQS_1`: Secondary server sequence limit
+- `VLLM_PORT_1`: Secondary server port (default: 8001)
+- `GPU_MEMORY_UTILIZATION_1`: Secondary GPU memory usage
+- `DEFAULT_MODEL_1`: Secondary model path
+
+#### Example .env File
+```bash
+# Primary VLLM Configuration
+MAX_NUM_SEQS=15
+VLLM_PORT=8000
+GPU_MEMORY_UTILIZATION=0.4
+MAX_MODEL_LEN=4096
+NVIDIA_VISIBLE_DEVICES=0
+DEFAULT_MODEL=yasserrmd/Text2SQL-1.5B
+
+# Secondary VLLM Configuration  
+MAX_NUM_SEQS_1=5
+VLLM_PORT_1=8001
+GPU_MEMORY_UTILIZATION_1=0.3
+DEFAULT_MODEL_1=premai-io/prem-1B-SQL
+
+# FastAPI Configuration
+LOGFIRE_TOKEN=pylf_v1_your_actual_key_here
+VLLM_API_URL=http://vllm:8000/v1/completions
+```
+
+#### What You Can Do With Environment Variables
+
+**1. Optimize Performance for Different Use Cases**
+- **High Throughput**: Set `MAX_NUM_SEQS=20` for processing many requests simultaneously
+- **Low Latency**: Set `MAX_NUM_SEQS=5` for faster individual response times
+- **Memory Optimization**: Adjust `GPU_MEMORY_UTILIZATION` based on your GPU capacity
+- **Long Context**: Increase `MAX_MODEL_LEN=4096` for handling longer conversations
+
+**2. Multi-GPU Configuration**
+- **Single GPU**: Use `NVIDIA_VISIBLE_DEVICES=0` (default)
+- **Second GPU**: Use `NVIDIA_VISIBLE_DEVICES=1` for dedicated GPU processing
+- **Multiple GPUs**: Configure different services to use different GPUs
+
+**3. Model Customization**
+- **Switch Models**: Change `DEFAULT_MODEL` to use different Hugging Face models
+- **Custom Paths**: Point to locally stored models or different model versions
+- **Model Comparison**: Run different models on different ports for A/B testing
+
+**4. Production vs Development Settings**
+- **Development**: Lower memory usage, smaller batch sizes for testing
+- **Production**: Higher throughput, optimized memory allocation for live serving
+- **Staging**: Balanced settings for pre-production testing
+
+**5. Resource Management**
+- **Memory Constraints**: Reduce `GPU_MEMORY_UTILIZATION` if running other GPU workloads
+- **Port Conflicts**: Change ports if 8000/8001 are already in use
+- **Load Balancing**: Distribute load across multiple VLLM instances
+
+**6. Monitoring and Logging**
+- **Logfire Integration**: Set your `LOGFIRE_TOKEN` for comprehensive LLM monitoring
+- **API Endpoints**: Configure `VLLM_API_URL` for different deployment scenarios
+- **Custom Metrics**: Adjust monitoring parameters for your specific needs
+
+**7. Scaling and Deployment**
+- **Horizontal Scaling**: Run multiple VLLM containers with different configurations
+- **Load Distribution**: Use different ports and memory allocations per instance
+- **Failover**: Configure backup models and endpoints for high availability
+
 ### Option 1: Full Setup with Docker Compose (Recommended)
 
 #### Step 1: Clone Repository
@@ -218,8 +341,31 @@ cd Instructstack_vllm_gpu
 # Install Hugging Face Hub if not already installed
 pip install huggingface_hub
 
-# Download both models
+# Download models using environment variables
 python download_model.py
+```
+
+**Model Download Configuration Options:**
+
+**Single Model Download:**
+```bash
+# Use default model (premai-io/prem-1B-SQL)
+python download_model.py
+
+# Or specify custom model
+MODEL_REPO_ID=yasserrmd/Text2SQL-1.5B python download_model.py
+```
+
+**Multiple Models Download:**
+```bash
+# Download multiple models at once
+MODELS_TO_DOWNLOAD="yasserrmd/Text2SQL-1.5B,premai-io/prem-1B-SQL" python download_model.py
+```
+
+**Custom Download Directory:**
+```bash
+# Specify custom local directory
+MODEL_LOCAL_DIR=models/custom/path python download_model.py
 ```
 
 #### Step 3: Launch Complete Stack
