@@ -10,8 +10,11 @@ A production-ready deployment solution for serving multiple language models effi
 - [Models Served](#models-served)
 - [Deployment Journey](#deployment-journey)
 - [Technical Details](#technical-details)
+- [Quick Start Deployment](#quick-start-deployment)
+- [Environment Configuration](#environment-configuration)
 - [Running the Project](#running-the-project)
 - [Monitoring Setup](#monitoring-setup)
+- [Testing & Performance](#testing--performance)
 - [Credits & References](#credits--references)
 
 ---
@@ -85,6 +88,10 @@ Both models are served via **separate vLLM containers** running on different por
 
 ✅ **Production-Ready**: Containerized deployment with proper resource management and monitoring
 
+✅ **Automated Deployment**: One-command deployment script with comprehensive setup and health checks
+
+✅ **Centralized Configuration**: Environment-based configuration system for easy customization and maintenance
+
 ---
 
 ## Technical Details
@@ -99,104 +106,14 @@ This project leverages several key Docker concepts for scalable deployment:
 - **Docker Compose**: Multi-container orchestration and service management
 - **Port Mapping**: Network routing between containers and host system
 
-### Repository Structure
+### Container Naming and Configuration
 
-#### Core Configuration Files
+The deployment uses a centralized naming system that allows customization of container names while maintaining service stability:
 
-- **`docker-compose.yml`**: 
-  - Orchestrates multi-container setup including vLLM servers, FastAPI backend, and monitoring stack
-  - Manages service dependencies, networking, and volume mounts
-  - Configures GPU access and environment variables
-
-- **`Dockerfile`** (vLLM GPU):
-  - Defines GPU-enabled vLLM environment with CUDA 12.1.1 runtime
-  - Sets up Miniconda environment with Python 3.11
-  - Installs Rust toolchain and UV package manager for optimized builds
-
-- **`Fastapi_vllm_web/Dockerfile`** (FastAPI):
-  - Creates lightweight Python 3.11 environment for API backend
-  - Installs FastAPI, Prometheus instrumentation, and Logfire monitoring
-  - Configures proper networking and port exposure
-
-- **`prometheus/prometheus.yml`**:
-  - Defines scrape configurations for all monitoring targets
-  - Monitors vLLM containers, FastAPI backend, Node Exporter, cAdvisor, and DCGM Exporter
-  - Sets collection intervals and service discovery rules
-
-- **`download_model.py`**:
-  - Automated script for downloading Hugging Face models locally
-  - Handles model repository cloning and local storage setup
-  - Supports both models with configurable download paths
-
-### vLLM Serving Commands
-
-#### GPU-Optimized Model Serving
-```bash
-# Basic vLLM serving with GPU optimization
-vllm serve <model_name> --tensor-parallel-size 1 --gpu-memory-utilization 0.9 --port <port>
-
-# OpenAI-compatible API server
-python -m vllm.entrypoints.openai.api_server --model <model_name>
-
-# Production configuration with batching
-vllm serve <model_name> --max-num-seqs 10 --gpu-memory-utilization 0.3 --max-model-len 2048
-```
-
-#### Parameter Explanations
-
-**`--gpu-memory-utilization`**: 
-- Controls the percentage of GPU memory allocated to the model
-- `0.9` = Uses 90% of available GPU memory for maximum performance
-- `0.3` = Uses 30% of GPU memory, leaving space for multiple models or other processes
-- Lower values enable multi-model serving on the same GPU
-
-**`--max-model-len`**: 
-- Sets the maximum sequence length (context window) the model can handle
-- `2048` = Maximum of 2048 tokens for input + output combined
-- Affects memory usage - longer sequences require more GPU memory
-- Must be within the model's trained context length limits
-
-**`--max-num-seqs`**: 
-- Maximum number of sequences (requests) processed simultaneously in a batch
-- `10` = Process up to 10 concurrent requests in parallel
-- Higher values increase throughput but require more GPU memory
-- Enables efficient batching for better GPU utilization
-
-#### Multi-Model Configuration
-Each model runs in a **separate container** with dedicated resources:
-- **Model 1**: `yasserrmd/Text2SQL-1.5B` on port 8000
-- **Model 2**: `premai-io/prem-1B-SQL` on port 8001  
-- **Independent Scaling**: Each container can be scaled separately based on demand
-- **Resource Isolation**: GPU memory allocation managed per container
-
-#### Concurrency Performance Results
-
-**Single Model Serving** (yasserrmd/Text2SQL-1.5B):
-- **Average Response Time**: 0.2 seconds
-- **Configuration**: `--gpu-memory-utilization 0.9` for maximum performance
-- **Concurrent Requests**: Optimized for high-frequency single model queries
-
-**Multi-Model Serving** (Two separate vLLM containers):
-- **Average Response Time**: 1.4 seconds  
-- **Configuration**: `--gpu-memory-utilization 0.3` per container
-- **Architecture**: Two independent vLLM containers running simultaneously
-- **Benefit**: True parallel model serving with isolated resource allocation
-
-> **Multi-Model Implementation**: Achieved using **2 separate vLLM containers**, each serving different models on dedicated ports. This approach ensures complete resource isolation and enables independent scaling of each model based on demand.
-
-### Key Features
-
-- **GPU Memory Management**: Optimized allocation with configurable utilization limits
-- **Concurrent Request Handling**: Multi-sequence processing with batching support
-- **OpenAI-Compatible API**: Standard endpoints for easy integration
-- **Dynamic Model Loading**: Runtime model switching capabilities
-- **Comprehensive Logging**: Request tracing and performance monitoring
-
----
-
-## Running the Project
-
-> **System Requirements**: This setup is designed for Ubuntu/Linux distributions with NVIDIA GPU support and Docker with GPU runtime.
+- **Service Names**: Static identifiers in docker-compose.yml (required by Docker Compose)
+- **Container Names**: Configurable via environment variables for easy identification
+- **Network Configuration**: Consistent networking across all services
+- **Monitoring Integration**: Prometheus targets automatically use the correct service names
 
 ### Prerequisites
 
@@ -205,16 +122,62 @@ Each model runs in a **separate container** with dedicated resources:
 - Docker Compose v3.8+
 - At least 8GB GPU memory (recommended)
 
-### Environment Variables Configuration
+---
 
-The project uses environment variables for flexible configuration. You can configure VLLM parameters, GPU settings, and API endpoints without modifying the docker-compose.yml file.
+## Quick Start Deployment
+
+### Automated Deployment Script
+
+The project includes a comprehensive deployment script that handles the entire setup process automatically:
+
+```bash
+# Navigate to the project directory
+cd Instructstack_vllm_gpu_deployment
+
+# Make the script executable
+chmod +x deploy.sh
+
+# Run the full deployment
+./deploy.sh
+```
+
+### What the Script Does
+
+The deployment script automates the complete setup process:
+
+1. **Prerequisites Check**: Verifies Docker and Docker Compose installation
+2. **Environment Setup**: Creates and configures the `.env` file
+3. **Directory Creation**: Sets up necessary folders for models and monitoring
+4. **Model Management**: Downloads AI models if needed
+5. **Service Deployment**: Starts all containers with proper configuration
+6. **Health Monitoring**: Verifies services are running correctly
+7. **Status Display**: Shows all service URLs and management commands
+
+### Script Options
+
+```bash
+./deploy.sh --help      # Show all available options
+./deploy.sh --start     # Start services only
+./deploy.sh --stop      # Stop services only
+./deploy.sh --restart   # Restart all services
+./deploy.sh --logs      # Show service logs
+./deploy.sh --clean     # Complete cleanup (stop + remove containers)
+```
+
+---
+
+## Environment Configuration
+
+### Centralized Configuration System
+
+The project uses a sophisticated environment variable system that provides flexibility while maintaining consistency across all services. Configuration is managed through a single `.env` file created from the provided template.
 
 #### Configuration Methods
 
 **Option 1: .env File (Recommended)**
 ```bash
-# The .env file is already created for you
-# Just edit it with your desired values
+# Copy the template and edit with your values
+cp env-template.txt .env
 nano .env
 ```
 
@@ -233,7 +196,6 @@ docker-compose up
 **Option 3: Direct Command Line**
 ```bash
 # Set variables directly in the same command line as docker-compose
-# This means setting the variable and running docker-compose in one line
 MAX_NUM_SEQS=20 GPU_MEMORY_UTILIZATION=0.5 docker-compose up
 ```
 
@@ -262,6 +224,20 @@ If you want to customize VLLM parameters, GPU settings, or API endpoints, you ca
 | `MODEL_USE_SYMLINKS` | False | Use symlinks for models | True/False |
 | `MODELS_TO_DOWNLOAD` | - | Multiple models (comma-separated) | "model1,model2,model3" |
 
+#### Container Naming Configuration
+
+The system allows customization of container names for better identification and management:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VLLM_CONTAINER_NAME` | vllm_server | Primary VLLM container name |
+| `VLLM1_CONTAINER_NAME` | vllm_server1 | Secondary VLLM container name |
+| `FASTAPI_CONTAINER_NAME` | fastapi-app | FastAPI container name |
+| `PROMETHEUS_CONTAINER_NAME` | prometheus | Prometheus container name |
+| `GRAFANA_CONTAINER_NAME` | grafana | Grafana container name |
+| `CADVISOR_CONTAINER_NAME` | cadvisor | cAdvisor container name |
+| `DCGM_EXPORTER_CONTAINER_NAME` | dcgm_exporter | DCGM exporter container name |
+
 #### Secondary VLLM Service Variables
 For the second VLLM container (vllm1), use variables with `_1` suffix:
 - `MAX_NUM_SEQS_1`: Secondary server sequence limit
@@ -288,6 +264,10 @@ DEFAULT_MODEL_1=premai-io/prem-1B-SQL
 # FastAPI Configuration
 LOGFIRE_TOKEN=pylf_v1_your_actual_key_here
 VLLM_API_URL=http://vllm:8000/v1/completions
+
+# Container Naming (Optional)
+VLLM_CONTAINER_NAME=my_vllm_server
+FASTAPI_CONTAINER_NAME=my_fastapi_app
 ```
 
 #### What You Can Do With Environment Variables
@@ -298,104 +278,63 @@ VLLM_API_URL=http://vllm:8000/v1/completions
 - **Memory Optimization**: Adjust `GPU_MEMORY_UTILIZATION` based on your GPU capacity
 - **Long Context**: Increase `MAX_MODEL_LEN=4096` for handling longer conversations
 
-**2. Multi-GPU Configuration**
-- **Single GPU**: Use `NVIDIA_VISIBLE_DEVICES=0` (default)
-- **Second GPU**: Use `NVIDIA_VISIBLE_DEVICES=1` for dedicated GPU processing
-- **Multiple GPUs**: Configure different services to use different GPUs
+**2. Customize Container Names**
+- **Production**: Use descriptive names like `prod_vllm_server`
+- **Development**: Use names like `dev_vllm_server`
+- **Testing**: Use names like `test_vllm_server`
 
-**3. Model Customization**
-- **Switch Models**: Change `DEFAULT_MODEL` to use different Hugging Face models
-- **Custom Paths**: Point to locally stored models or different model versions
-- **Model Comparison**: Run different models on different ports for A/B testing
+**3. Multi-GPU Support**
+- **Primary GPU**: Set `NVIDIA_VISIBLE_DEVICES=0`
+- **Secondary GPU**: Set `NVIDIA_VISIBLE_DEVICES=1`
+- **Multiple GPUs**: Set `NVIDIA_VISIBLE_DEVICES=0,1`
 
-**4. Production vs Development Settings**
-- **Development**: Lower memory usage, smaller batch sizes for testing
-- **Production**: Higher throughput, optimized memory allocation for live serving
-- **Staging**: Balanced settings for pre-production testing
+---
 
-**5. Resource Management**
-- **Memory Constraints**: Reduce `GPU_MEMORY_UTILIZATION` if running other GPU workloads
-- **Port Conflicts**: Change ports if 8000/8001 are already in use
-- **Load Balancing**: Distribute load across multiple VLLM instances
+## Running the Project
 
-**6. Monitoring and Logging**
-- **Logfire Integration**: Set your `LOGFIRE_TOKEN` for comprehensive LLM monitoring
-- **API Endpoints**: Configure `VLLM_API_URL` for different deployment scenarios
-- **Custom Metrics**: Adjust monitoring parameters for your specific needs
+### Method 1: Automated Deployment (Recommended)
 
-**7. Scaling and Deployment**
-- **Horizontal Scaling**: Run multiple VLLM containers with different configurations
-- **Load Distribution**: Use different ports and memory allocations per instance
-- **Failover**: Configure backup models and endpoints for high availability
-
-### Option 1: Full Setup with Docker Compose (Recommended)
-
-#### Step 1: Clone Repository
 ```bash
-git clone <your-repository-url>
-cd Instructstack_vllm_gpu
+# Navigate to project directory
+cd Instructstack_vllm_gpu_deployment
+
+# Run the deployment script
+./deploy.sh
 ```
 
-#### Step 2: Download Models Locally
-```bash
-# Install Hugging Face Hub if not already installed
-pip install huggingface_hub
+### Method 2: Manual Docker Compose
 
-# Download models using environment variables
-python download_model.py
+```bash
+# Navigate to project directory
+cd Instructstack_vllm_gpu_deployment
+
+# Create .env file from template
+cp env-template.txt .env
+
+# Edit .env file with your configuration
+nano .env
+
+# Start services
+docker-compose up -d
+
+# Check status
+docker-compose ps
+
+# View logs
+docker-compose logs -f
 ```
 
-**Model Download Configuration Options:**
+### Method 3: Individual Container Management
 
-**Single Model Download:**
-```bash
-# Use default model (premai-io/prem-1B-SQL)
-python download_model.py
-
-# Or specify custom model
-MODEL_REPO_ID=yasserrmd/Text2SQL-1.5B python download_model.py
-```
-
-**Multiple Models Download:**
-```bash
-# Download multiple models at once
-MODELS_TO_DOWNLOAD="yasserrmd/Text2SQL-1.5B,premai-io/prem-1B-SQL" python download_model.py
-```
-
-**Custom Download Directory:**
-```bash
-# Specify custom local directory
-MODEL_LOCAL_DIR=models/custom/path python download_model.py
-```
-
-#### Step 3: Launch Complete Stack
-```bash
-# Build and start all services
-docker-compose up --build
-
-# Run in detached mode
-docker-compose up --build -d
-```
-
-#### Step 4: Verify Services
-- **vLLM Server**: http://localhost:8000
-- **FastAPI Backend**: http://localhost:9000  
-- **Prometheus**: http://localhost:9090
-- **Grafana**: http://localhost:3000
-- **Node Exporter**: http://localhost:9100
-- **cAdvisor**: http://localhost:8081
-- **DCGM Exporter**: http://localhost:9400
-
-### Option 2: Manual Container Execution
-
-#### vLLM GPU Container
+#### VLLM GPU Container
 ```bash
 # Run yasserrmd/Text2SQL-1.5B model
 docker run --gpus all -p 8000:8000 \
   -v ./models:/models \
   hamzaak4/vllm-gpu-image:latest \
   --model yasserrmd/Text2SQL-1.5B \
-  --gpu-memory-utilization 0.9
+  --gpu-memory-utilization 0.3 \
+  --port 8000
 
 # Run premai-io/prem-1B-SQL model  
 docker run --gpus all -p 8001:8001 \
@@ -453,7 +392,7 @@ Create a new request with:
 ### Comprehensive Observability Stack
 
 #### Prometheus Metrics Collection
-Prometheus scrapes metrics from multiple sources every 5 seconds:
+Prometheus scrapes metrics from multiple sources every 5 seconds with enhanced configuration:
 
 - **vLLM GPU Containers** (ports 8000, 8001):
   - Request latency and throughput
@@ -483,6 +422,14 @@ Prometheus scrapes metrics from multiple sources every 5 seconds:
   - Power consumption
   - SM (Streaming Multiprocessor) utilization
 
+#### Enhanced Prometheus Configuration
+
+The monitoring system now includes:
+- **Dynamic Job Names**: Uses container names for better metric identification
+- **Service Labels**: Enhanced labeling for improved metric organization
+- **Comprehensive Comments**: Detailed explanations for each monitoring target
+- **Environment Integration**: Seamless integration with the container naming system
+
 #### Grafana Dashboards
 Grafana (port 3000) provides pre-configured dashboards for:
 - **GPU Performance**: Real-time GPU metrics and utilization
@@ -491,11 +438,12 @@ Grafana (port 3000) provides pre-configured dashboards for:
 - **System Overview**: Host system performance and health
 
 #### Pydantic Logfire Integration
-Advanced LLM monitoring capabilities:
+Advanced LLM monitoring capabilities with improved error handling:
 - **Request Tracing**: Complete request lifecycle tracking
 - **Performance Analytics**: Inference time analysis and optimization insights
 - **Error Monitoring**: Detailed error tracking and debugging information
 - **Model Performance**: Token generation rates and model efficiency metrics
+- **Graceful Fallback**: Continues operation even if Logfire configuration fails
 
 ### Accessing Monitoring
 
@@ -503,6 +451,69 @@ Advanced LLM monitoring capabilities:
 2. **Prometheus**: http://localhost:9090  
 3. **Logfire Dashboard**: Access via your Pydantic Logfire account
 4. **Individual Exporters**: Available on their respective ports
+
+---
+
+## Testing & Performance
+
+### Concurrency Testing
+
+The project includes an advanced concurrency testing script that provides comprehensive performance analysis:
+
+```bash
+# Run the concurrency test
+python3 concurrency_test.py
+
+# Customize test parameters via environment variables
+CONCURRENCY=20 REQUESTS_PER_CLIENT=10 python3 concurrency_test.py
+```
+
+#### Test Features
+
+- **Multi-User Simulation**: Simulates multiple concurrent users
+- **Performance Metrics**: Response time analysis and throughput calculation
+- **Error Handling**: Comprehensive error tracking and categorization
+- **Configurable Parameters**: Adjustable concurrency levels and request counts
+- **Real-time Monitoring**: Live feedback during test execution
+- **Summary Statistics**: Detailed performance reports
+
+#### Test Configuration
+
+The concurrency test supports various configuration options:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CONCURRENCY` | 10 | Number of concurrent users |
+| `REQUESTS_PER_CLIENT` | 5 | Requests per user |
+| `REQUEST_TIMEOUT` | 30 | Request timeout in seconds |
+| `MAX_TOKENS` | 128 | Maximum tokens in response |
+| `TEMPERATURE` | 0.3 | Response temperature |
+
+#### Performance Analysis
+
+The test provides comprehensive performance insights:
+- **Response Time Statistics**: Average, minimum, and maximum response times
+- **Success/Failure Rates**: Percentage of successful vs. failed requests
+- **Throughput Calculation**: Requests per second processing capability
+- **Error Categorization**: Detailed breakdown of different error types
+- **Resource Utilization**: GPU and system resource usage during testing
+
+### Load Testing Scenarios
+
+**High Concurrency Testing**
+```bash
+CONCURRENCY=50 REQUESTS_PER_CLIENT=20 python3 concurrency_test.py
+```
+
+**Stress Testing**
+```bash
+CONCURRENCY=100 REQUESTS_PER_CLIENT=50 python3 concurrency_test.py
+```
+
+**Performance Benchmarking**
+```bash
+CONCURRENCY=10 REQUESTS_PER_CLIENT=100 python3 concurrency_test.py
+```
 
 ---
 

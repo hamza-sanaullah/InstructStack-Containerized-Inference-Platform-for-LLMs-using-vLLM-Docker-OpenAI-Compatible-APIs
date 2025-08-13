@@ -17,13 +17,13 @@ x-vllm-config: &vllm-config
   
   # Logfire Configuration
   # Don't use this key this is wrong key use your own key
-  LOGFIRE_TOKEN: "pylf_v1_eu_N7j4J9MSp9Z02gWs10RYKdwK70L"  # Replace with your Logfire serve key here
+  LOGFIRE_TOKEN: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  # Replace with your Logfire serve key here
 
 services:
   # VLLM Server - Main instance
   vllm:
     image: hamzaak4/vllm-gpu-image:latest
-    container_name: vllm_server
+    container_name: ${VLLM_CONTAINER_NAME:-vllm_server}
     runtime: nvidia
     volumes:
       - ./models:/models  # Mount local models directory to container
@@ -46,45 +46,45 @@ services:
     ports:
       - "${VLLM_PORT:-8000}:${VLLM_PORT:-8000}"
     networks:
-      - vllm-net
+      - ${NETWORK_NAME:-vllm-net}
     restart: "no"  # Container is removed unless you override with --rm
 
   # VLLM Server - Secondary instance with different configuration
-  vllm1:
-    image: hamzaak4/vllm-gpu-image:latest
-    container_name: vllm_server1
-    runtime: nvidia
+  # vllm1:
+  #   image: hamzaak4/vllm-gpu-image:latest
+  #   container_name: ${VLLM1_CONTAINER_NAME:-vllm_server1}
+  #   runtime: nvidia
     
-    volumes:
-      - ./models:/models
-    environment:
-      DEFAULT_MODEL: ${DEFAULT_MODEL_1:-premai-io/prem-1B-SQL}
-      PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
-      NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES_1:-0}
-      MAX_NUM_SEQS: ${MAX_NUM_SEQS_1:-1}
-      VLLM_PORT: ${VLLM_PORT_1:-8001}
-      GPU_MEMORY_UTILIZATION: ${GPU_MEMORY_UTILIZATION_1:-0.3}
-      MAX_MODEL_LEN: ${MAX_MODEL_LEN:-2048}
+  #   volumes:
+  #     - ./models:/models
+  #   environment:
+  #     DEFAULT_MODEL: ${DEFAULT_MODEL_1:-premai-io/prem-1B-SQL}
+  #     PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+  #     NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES_1:-0}
+  #     MAX_NUM_SEQS: ${MAX_NUM_SEQS_1:-1}
+  #     VLLM_PORT: ${VLLM_PORT_1:-8001}
+  #     GPU_MEMORY_UTILIZATION: ${GPU_MEMORY_UTILIZATION_1:-0.3}
+  #     MAX_MODEL_LEN: ${MAX_MODEL_LEN:-2048}
 
-    command: >
-      bash -c "source /opt/conda/etc/profile.d/conda.sh &&
-               conda activate vllm_env &&
-               vllm serve /models/$$DEFAULT_MODEL 
-               --max-num-seqs $$MAX_NUM_SEQS 
-               --port $$VLLM_PORT 
-               --gpu-memory-utilization $$GPU_MEMORY_UTILIZATION 
-               --max-model-len $$MAX_MODEL_LEN"
+  #   command: >
+  #     bash -c "source /opt/conda/etc/profile.d/conda.sh &&
+  #              conda activate vllm_env &&
+  #              vllm serve /models/$$DEFAULT_MODEL 
+  #              --max-num-seqs $$MAX_NUM_SEQS 
+  #              --port $$VLLM_PORT 
+  #              --gpu-memory-utilization $$GPU_MEMORY_UTILIZATION 
+  #              --max-model-len $$MAX_MODEL_LEN"
                
-    ports:
-      - "${VLLM_PORT_1:-8001}:${VLLM_PORT_1:-8001}"
-    networks:
-      - vllm-net
-    restart: "no"
+  #   ports:
+  #     - "${VLLM_PORT_1:-8001}:${VLLM_PORT_1:-8001}"
+  #   networks:
+  #     - ${NETWORK_NAME:-vllm-net}
+  #   restart: "no"
 
   # FastAPI Web Application - Provides REST API interface to VLLM
   fastapi_app:
-    image: hamzaak4/fastapi-vllm:Latest
-    container_name: fastapi-app
+    image: hamzaak4/fastapi-vllm:latest
+    container_name: ${FASTAPI_CONTAINER_NAME:-fastapi-app}
     ports:
       - "9000:9000"
     volumes:
@@ -97,43 +97,43 @@ services:
     depends_on:
       - vllm
     networks:
-      - vllm-net
+      - ${NETWORK_NAME:-vllm-net}
 
   # Prometheus - Metrics collection and monitoring
   prometheus:
     image: prom/prometheus
-    container_name: prometheus
+    container_name: ${PROMETHEUS_CONTAINER_NAME:-prometheus}
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"
     networks:
-      - vllm-net
+      - ${NETWORK_NAME:-vllm-net}
 
   # Node Exporter - System metrics collection
   node_exporter:
     image: prom/node-exporter
-    container_name: node_exporter
+    container_name: ${NODE_EXPORTER_CONTAINER_NAME:-node_exporter}
     ports:
       - "9100:9100"
     networks:
-      - vllm-net
+      - ${NETWORK_NAME:-vllm-net}
 
   # Grafana - Metrics visualization and dashboards
   grafana:
     image: grafana/grafana
-    container_name: grafana
+    container_name: ${GRAFANA_CONTAINER_NAME:-grafana}
     ports:
       - "3000:3000"
     networks:
-      - vllm-net
+      - ${NETWORK_NAME:-vllm-net}
     volumes:
       - grafana-storage:/var/lib/grafana  # Persistent storage for Grafana data
 
   # cAdvisor - Container resource usage monitoring
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
-    container_name: cadvisor
+    container_name: ${CADVISOR_CONTAINER_NAME:-cadvisor}
     ports:
       - "8081:8080"
     privileged: true  # Required for system-level access
@@ -145,19 +145,19 @@ services:
       - /var/lib/docker/image:/var/lib/docker/image:ro
       - /var/lib/docker/overlay2:/var/lib/docker/overlay2:ro
     networks:
-      - vllm-net
+      - ${NETWORK_NAME:-vllm-net}
 
   # NVIDIA DCGM Exporter - GPU metrics collection
   dcgm-exporter:
     image: nvidia/dcgm-exporter:latest
-    container_name: dcgm_exporter
+    container_name: ${DCGM_EXPORTER_CONTAINER_NAME:-dcgm_exporter}
     runtime: nvidia
     ports:
       - "9400:9400"
     environment:
       - NVIDIA_VISIBLE_DEVICES=all  # Monitor all available GPUs
     networks:
-      - vllm-net
+      - ${NETWORK_NAME:-vllm-net}
 
 # Network configuration for inter-service communication
 networks:
