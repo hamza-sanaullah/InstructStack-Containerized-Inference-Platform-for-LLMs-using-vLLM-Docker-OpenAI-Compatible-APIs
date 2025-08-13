@@ -22,7 +22,7 @@ x-vllm-config: &vllm-config
 services:
   # VLLM Server - Main instance
   vllm:
-    image: hamzaak4/vllm-gpu-image:latest
+    image: vllm-gpu-image:latest
     container_name: ${VLLM_CONTAINER_NAME:-vllm_server}
     runtime: nvidia
     volumes:
@@ -38,10 +38,7 @@ services:
     command: >
       bash -c "source /opt/conda/etc/profile.d/conda.sh &&
                conda activate vllm_env &&
-               vllm serve /models/$$DEFAULT_MODEL 
-               --max-num-seqs $$MAX_NUM_SEQS 
-               --port $$VLLM_PORT 
-               --gpu-memory-utilization $$GPU_MEMORY_UTILIZATION"
+               vllm serve /models/$$DEFAULT_MODEL --max-num-seqs $$MAX_NUM_SEQS --port $$VLLM_PORT --gpu-memory-utilization $$GPU_MEMORY_UTILIZATION"
                
     ports:
       - "${VLLM_PORT:-8000}:${VLLM_PORT:-8000}"
@@ -68,12 +65,8 @@ services:
 
   #   command: >
   #     bash -c "source /opt/conda/etc/profile.d/conda.sh &&
-  #              conda activate vllm_env &&
-  #              vllm serve /models/$$DEFAULT_MODEL 
-  #              --max-num-seqs $$MAX_NUM_SEQS 
-  #              --port $$VLLM_PORT 
-  #              --gpu-memory-utilization $$GPU_MEMORY_UTILIZATION 
-  #              --max-model-len $$MAX_MODEL_LEN"
+  #         conda activate vllm_env &&
+  #         vllm serve /models/$$DEFAULT_MODEL --max-num-seqs $$MAX_NUM_SEQS --port $$VLLM_PORT --gpu-memory-utilization $$GPU_MEMORY_UTILIZATION"
                
   #   ports:
   #     - "${VLLM_PORT_1:-8001}:${VLLM_PORT_1:-8001}"
@@ -83,7 +76,7 @@ services:
 
   # FastAPI Web Application - Provides REST API interface to VLLM
   fastapi_app:
-    image: hamzaak4/fastapi-vllm:latest
+    image: fastapi-vllm:Latest
     container_name: ${FASTAPI_CONTAINER_NAME:-fastapi-app}
     ports:
       - "9000:9000"
