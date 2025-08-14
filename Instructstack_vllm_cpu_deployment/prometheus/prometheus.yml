@@ -2,17 +2,38 @@ global:
   scrape_interval: 5s  # How often to scrape targets
 
 scrape_configs:
-  - job_name: "fastapi_app"
+  # FastAPI Web Application Monitoring
+  # This job monitors the FastAPI application that provides the REST API interface to VLLM
+  - job_name: "${FASTAPI_CONTAINER_NAME:-fastapi-app}"
     static_configs:
       - targets: ["fastapi_app:9000"]
+        labels:
+          service: "fastapi"
+          description: "FastAPI web application metrics and performance"
 
-  - job_name: "node"
+  # System-level Node Metrics
+  # This job collects system-level metrics like CPU, memory, disk, and network usage
+  - job_name: "${NODE_EXPORTER_CONTAINER_NAME:-node_exporter}"
     static_configs:
       - targets: ["node_exporter:9100"]
+        labels:
+          service: "node_exporter"
+          description: "System-level metrics (CPU, memory, disk, network)"
 
-  - job_name: "vllm_server"
+  # Primary VLLM Server Monitoring
+  # This job monitors the main VLLM inference server for model performance and resource usage
+  - job_name: "${VLLM_CONTAINER_NAME:-vllm_server}"
     static_configs:
       - targets: ["vllm:8000"]
-  - job_name: "cadvisor"
+        labels:
+          service: "vllm_primary"
+          description: "Primary VLLM inference server metrics (CPU-based)"
+
+  # Container Resource Usage Monitoring
+  # This job monitors Docker container resource usage including CPU, memory, and network
+  - job_name: "${CADVISOR_CONTAINER_NAME:-cadvisor}"
     static_configs:
       - targets: ["cadvisor:8080"]
+        labels:
+          service: "cadvisor"
+          description: "Container resource usage monitoring (CPU, memory, network)"

@@ -5,3 +5,8 @@ requests
 jinja2
 docker
 prometheus-fastapi-instrumentator
+tiktoken
+logfire[fastapi]
+logfire[requests]
+logfire[httpx]
+logfire

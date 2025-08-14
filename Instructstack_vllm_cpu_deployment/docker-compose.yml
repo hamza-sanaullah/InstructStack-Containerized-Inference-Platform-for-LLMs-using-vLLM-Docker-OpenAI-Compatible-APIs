@@ -1,91 +1,121 @@
-version: "3.8"
+version: '3.8'
+
+# Environment variables for VLLM CPU configuration
+# You can override these values by creating a .env file or setting them in your shell
+x-vllm-config: &vllm-config
+  # VLLM Server Configuration
+  VLLM_PORT: 8000                     # Port for VLLM server to listen on
+  
+  # CPU Configuration
+  CPU_DEVICE: cpu                     # Use CPU for inference
+  
+  # Model Configuration
+  DEFAULT_MODEL: facebook/opt-125m  # Default model to load
+  
+  # Service Ports Configuration
+  FASTAPI_PORT: 9000                 # Port for FastAPI web application
+  PROMETHEUS_PORT: 9090              # Port for Prometheus metrics collection
+  NODE_EXPORTER_PORT: 9100           # Port for Node Exporter system metrics
+  GRAFANA_PORT: 3000                 # Port for Grafana dashboards
+  CADVISOR_PORT: 8081                # Port for cAdvisor container monitoring
+  
+  # Logfire Configuration
+  # Don't use this key this is wrong key use your own key
+  # LOGFIRE_TOKEN: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  # Replace with your Logfire serve key here
 
 services:
+  # VLLM Server - Main instance
   vllm:
     image: hamzaak4/vllm-cpu-image:Latest1.1
-    container_name: vllm_server
+    container_name: ${VLLM_CONTAINER_NAME:-vllm_server}
     privileged: true
-    ports:
-      - "8000:8000"
     volumes:
-      - ./models:/models
+      - ./models:/models  # Mount local models directory to container
     environment:
-      DEFAULT_MODEL: "sshleifer/tiny-gpt2"  # Fixed syntax
+      DEFAULT_MODEL: ${DEFAULT_MODEL:-facebook/opt-125m}
+      VLLM_PORT: ${VLLM_PORT:-8000}
+
     command: >
       bash -c "source /opt/conda/etc/profile.d/conda.sh &&
-      conda activate vllm_env &&
-      vllm serve /models/$$DEFAULT_MODEL --device cpu --host 0.0.0.0 --port 8000"
-    networks:
-      - vllm-net
-
-  fastapi_app:
-    image: hamzaak4/fastapi_vllm_cpu:Latest
-    container_name: fastapi-app
+               conda activate vllm_env &&
+               vllm serve /models/$$DEFAULT_MODEL --device ${CPU_DEVICE:-cpu} --host 0.0.0.0 --port $$VLLM_PORT"
+               
     ports:
-      - "9000:9000"
+      - "${VLLM_PORT:-8000}:${VLLM_PORT:-8000}"
+    networks:
+      - ${NETWORK_NAME:-vllm-net}
+    restart: "no"  # Container is removed unless you override with --rm
+
+  # FastAPI Web Application - Provides REST API interface to VLLM
+  fastapi_app:
+    image: hamzaak4/fastapi_vllm_cpu:Latest1.0
+    container_name: ${FASTAPI_CONTAINER_NAME:-fastapi-app}
+    ports:
+      - "${FASTAPI_PORT:-9000}:9000"
     volumes:
       - ./models:/models
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock  # Required for Docker API access
     environment:
-      - VLLM_API_URL=http://vllm:8000/v1/completions
-      - HOST_MODEL_PATH=/home/hamza/Instructstack/models  
+      LOGFIRE_TOKEN: ${LOGFIRE_TOKEN}  # Your Logfire serve key for logging
+      VLLM_API_URL: ${VLLM_API_URL:-http://vllm:8000/v1/completions}  # Primary VLLM API endpoint
     depends_on:
       - vllm
     networks:
-      - vllm-net
+      - ${NETWORK_NAME:-vllm-net}
 
+  # Prometheus - Metrics collection and monitoring
   prometheus:
     image: prom/prometheus
-    container_name: prometheus
+    container_name: ${PROMETHEUS_CONTAINER_NAME:-prometheus}
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_PORT:-9090}:9090"
     networks:
-      - vllm-net
-    
+      - ${NETWORK_NAME:-vllm-net}
 
+  # Node Exporter - System metrics collection
   node_exporter:
     image: prom/node-exporter
-    container_name: node_exporter
+    container_name: ${NODE_EXPORTER_CONTAINER_NAME:-node_exporter}
     ports:
-      - "9100:9100"
+      - "${NODE_EXPORTER_PORT:-9100}:9100"
     networks:
-      - vllm-net
+      - ${NETWORK_NAME:-vllm-net}
 
-  
-    
+  # Grafana - Metrics visualization and dashboards
   grafana:
     image: grafana/grafana
-    container_name: grafana
+    container_name: ${GRAFANA_CONTAINER_NAME:-grafana}
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT:-3000}:3000"
     networks:
-      - vllm-net
+      - ${NETWORK_NAME:-vllm-net}
     volumes:
-      - grafana-storage:/var/lib/grafana
+      - grafana-storage:/var/lib/grafana  # Persistent storage for Grafana data
 
+  # cAdvisor - Container resource usage monitoring
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
-    container_name: cadvisor
+    container_name: ${CADVISOR_CONTAINER_NAME:-cadvisor}
     ports:
-      - "8081:8080"
-    privileged: true
+      - "${CADVISOR_PORT:-8081}:8080"
+    privileged: true  # Required for system-level access
     volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
+      - /:/rootfs:ro                    # Read-only access to root filesystem
+      - /var/run:/var/run:ro            # Docker runtime information
+      - /sys:/sys:ro                    # System information
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/lib/docker/image:/var/lib/docker/image:ro
       - /var/lib/docker/overlay2:/var/lib/docker/overlay2:ro
     networks:
-      - vllm-net
+      - ${NETWORK_NAME:-vllm-net}
 
-
-
+# Network configuration for inter-service communication
 networks:
   vllm-net:
     driver: bridge
 
+# Persistent volumes for data storage
 volumes:
-  grafana-storage:    
+  grafana-storage:  # Grafana dashboards and configuration persistence    

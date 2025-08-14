@@ -5,23 +5,20 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Set root working directory
-WORKDIR /FASTAPI
+# Set working directory
+WORKDIR /app
 
-# Copy app code from host into container's /FASTAPI/app
-COPY app/ app/
-
-# Copy requirements.txt into /FASTAPI
+# Copy requirements first for better Docker layer caching
 COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install -r requirements.txt
 
+# Copy the entire app directory
+COPY app/ .
+
 # Expose FastAPI port
 EXPOSE 9000
 
-# Final working directory will be /FASTAPI
-WORKDIR /FASTAPI/app
-
-# Run the app on port 9000
+# Run the FastAPI application
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "9000"]

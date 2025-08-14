@@ -1,5 +1,4 @@
 __pycache__/
-__init__.py
 *.pyc
 *.pyo
 *.pyd
@@ -11,5 +10,3 @@ venv/
 .git/
 README.md
 app/README.md
-app/__init__.py
-app/__pycache__

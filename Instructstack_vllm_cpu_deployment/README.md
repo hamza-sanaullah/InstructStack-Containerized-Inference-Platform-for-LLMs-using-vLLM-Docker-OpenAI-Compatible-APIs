@@ -71,8 +71,10 @@ Selected **lightweight models** specifically for efficient CPU inference:
 #### **Root Directory**
 - **`Dockerfile`** - Main container definition for vLLM CPU deployment. Contains all dependencies, environment setup, and vLLM compilation from source with CPU optimizations.
 - **`docker-compose.yml`** - Orchestrates the entire multi-service stack (vLLM, FastAPI, Prometheus, Grafana, cAdvisor). Defines networks, volumes, and service dependencies.
+- **`deploy.sh`** - **Automated deployment script** that handles the complete setup process including prerequisites, environment setup, model downloads, and service deployment.
+- **`env-template.txt`** - Environment variables template file for easy configuration.
 - **`environment.yml`** - Conda environment specification with Python 3.11 and required packages for vLLM CPU build.
-- **`test_vllm.py`** - Testing script to validate vLLM inference functionality and API endpoints after deployment.
+- **`test_vllm.py`** - **Comprehensive testing script** that validates VLLM inference functionality, API endpoints, and provides curl command examples for production testing.
 - **`download_model.py`** - Utility script to download and prepare models for local storage before containerization.
 
 #### **Fastapi_vllm_web/** - Web Interface Layer
@@ -99,21 +101,89 @@ Selected **lightweight models** specifically for efficient CPU inference:
 
 > **⚠️ Ubuntu/Linux Required**: This setup is optimized for **Ubuntu or other Linux distributions**. Windows users should use WSL2.
 
+### Environment Configuration
+
+The deployment supports comprehensive environment variable configuration. You have **two ways** to configure your deployment:
+
+#### **Option 1: Using .env file (Recommended)**
+1. **Copy the environment template**:
+   ```bash
+   cp env-template.txt .env
+   ```
+
+2. **Edit the `.env` file** with your preferred values:
+   - Model configuration (DEFAULT_MODEL, etc.)
+   - Service ports (VLLM_PORT, FASTAPI_PORT, etc.)
+   - Container naming (optional)
+   - Logfire token for logging
+   - Model download settings
+
+#### **Option 2: Direct Docker Compose editing**
+You can also edit the `docker-compose.yml` file directly and modify the default values in the configuration section.
+
+#### **Key Environment Variables:**
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DEFAULT_MODEL` | `facebook/opt-125m` | Model to load |
+| `VLLM_PORT` | `8000` | VLLM server port |
+| `FASTAPI_PORT` | `9000` | FastAPI web interface port |
+| `PROMETHEUS_PORT` | `9090` | Prometheus metrics port |
+| `GRAFANA_PORT` | `3000` | Grafana dashboard port |
+| `NODE_EXPORTER_PORT` | `9100` | Node Exporter port |
+| `CADVISOR_PORT` | `8081` | cAdvisor monitoring port |
+| `LOGFIRE_TOKEN` | `your_logfire_token_here` | Your Logfire serve key |
+| `MODEL_REPO_ID` | `sshleifer/tiny-gpt2` | Model to download |
+
+#### **Download Models:**
+```bash
+# Download single model
+python download_model.py
+
+# Download multiple models
+export MODELS_TO_DOWNLOAD="model1,model2,model3"
+python download_model.py
+```
+
 ### Prerequisites
 - Docker & Docker Compose
 - 4GB+ RAM
 - Ubuntu 20.04+ (recommended)
 
 ### 🚀 Quick Start (Recommended)
-**Simple one-command deployment** - Docker Compose will automatically pull images and start all containers:
+
+#### **Option 1: Using deploy.sh script (Easiest)**
+The easiest way to deploy is using the provided deployment script:
 
 ```bash
-# Just run this - it handles everything automatically
+# Make the script executable (first time only)
+chmod +x deploy.sh
+
+# Run the deployment script
+./deploy.sh
+```
+
+> **🚀 One-Command Deployment**: Just run `./deploy.sh` and the script will handle everything automatically!
+
+This script will:
+- ✅ Check prerequisites (Docker, Docker Compose)
+- ✅ Set up environment configuration
+- ✅ Create necessary directories
+- ✅ Download models if needed
+- ✅ Start all services
+- ✅ Run health checks
+- ✅ Show service URLs and management commands
+
+#### **Option 2: Manual Docker Compose**
+Traditional Docker Compose deployment:
+
+```bash
+# Start all services
 docker-compose up -d
 
 # Verify all services are running
 docker-compose ps
 ```
+
 > **Note**: First run will take time as it downloads images (~2-3GB total)
 
 ### 🔄 Pre-pull Images (Optional)
@@ -129,6 +199,31 @@ docker pull hamzaak4/fastapi_vllm_cpu:Latest
 # Then start the stack
 docker-compose up -d
 ```
+
+### 🛠️ Deploy.sh Script Features
+
+The `deploy.sh` script provides comprehensive deployment automation with these features:
+
+#### **Available Commands:**
+```bash
+./deploy.sh              # Full deployment (default)
+./deploy.sh --start      # Start services only
+./deploy.sh --stop       # Stop services only
+./deploy.sh --restart    # Restart services
+./deploy.sh --logs       # Show service logs
+./deploy.sh --clean      # Clean up everything
+./deploy.sh --help       # Show help
+```
+
+#### **What the Script Does:**
+- 🔍 **Prerequisites Check**: Verifies Docker and Docker Compose installation
+- ⚙️ **Environment Setup**: Creates `.env` file from template if needed
+- 📁 **Directory Creation**: Sets up models, prometheus, and logs directories
+- 🤖 **Model Management**: Offers to download models if not present
+- 🚀 **Service Deployment**: Starts all services with proper sequencing
+- ✅ **Health Checks**: Verifies services are running correctly
+- 📊 **Status Display**: Shows all service URLs and management commands
+- 📝 **Log Access**: Option to view real-time service logs
 
 ### 🔧 Running Individual Containers (Manual Setup)
 
@@ -161,12 +256,16 @@ uvicorn main:app --host 0.0.0.0 --port 9000
 ```
 
 ### 🌐 Service Endpoints
-| Service | Port | Description |
-|---------|------|-------------|
-| vLLM API | 8000 | Model inference |
-| FastAPI Web | 9000 | Web interface |
-| Prometheus | 9090 | Metrics collection |
-| Grafana | 3000 | Monitoring dashboard |
+| Service | Port | Description | Environment Variable |
+|---------|------|-------------|---------------------|
+| vLLM API | 8000 | Model inference | `VLLM_PORT` |
+| FastAPI Web | 9000 | Web interface | `FASTAPI_PORT` |
+| Prometheus | 9090 | Metrics collection | `PROMETHEUS_PORT` |
+| Grafana | 3000 | Monitoring dashboard | `GRAFANA_PORT` |
+| Node Exporter | 9100 | System metrics | `NODE_EXPORTER_PORT` |
+| cAdvisor | 8081 | Container monitoring | `CADVISOR_PORT` |
+
+> **Note**: All ports are configurable via environment variables. Default values shown above.
 
 ### 📡 vLLM Model Serving Commands
 These commands are used to serve models with vLLM:
@@ -194,39 +293,88 @@ vllm serve ./models/your-model-name --device cpu --host 0.0.0.0 --port 8000
 
 ## 🧪 Testing the Deployment
 
-### API Testing with cURL
+### 🎯 Testing Strategy
+
+**The correct way to test your VLLM deployment:**
+
+1. **First**: Ensure VLLM server is running with a model (`./deploy.sh`)
+2. **Then**: Test the model using curl commands (recommended for production)
+3. **Finally**: Use Python testing for development and debugging
+
+### 🚀 Quick Testing with cURL (Recommended)
+
+**Start with these essential tests:**
+
+#### **1. Health Check**
 ```bash
-# Test vLLM API directly
+curl http://localhost:8000/health
+```
+
+#### **2. Basic Text Completion**
+```bash
 curl -X POST http://localhost:8000/v1/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "facebook/opt-125m", 
-    "prompt": "Once upon a time", 
-    "max_tokens": 20,
+    "prompt": "The future of AI is", 
+    "max_tokens": 30,
     "temperature": 0.7
   }'
+```
 
-# Test FastAPI web interface
-curl http://localhost:9000/
-
-# Health check
-curl http://localhost:8000/health
-
-# Test with different model
+#### **3. Advanced Completion with Parameters**
+```bash
 curl -X POST http://localhost:8000/v1/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "sshleifer/tiny-gpt2", 
-    "prompt": "The future of AI is", 
-    "max_tokens": 30
+    "model": "facebook/opt-125m", 
+    "prompt": "Once upon a time in a galaxy far far away", 
+    "max_tokens": 50,
+    "temperature": 0.8,
+    "top_p": 0.95,
+    "stop": ["\n", "."]
   }'
 ```
 
-### Comprehensive Testing
+#### **4. Test FastAPI Web Interface**
 ```bash
-# Use the provided test script
-python test_vllm.py
+curl http://localhost:9000/
 ```
+
+### 🧪 Comprehensive Testing Suite
+
+**Use the enhanced test script for thorough testing:**
+
+```bash
+# Run all tests
+python test_vllm.py
+
+# Show only curl commands
+python test_vllm.py --curl-only
+
+# Run only Python client tests
+python test_vllm.py --python-only
+
+# Run only API endpoint tests
+python test_vllm.py --api-only
+```
+
+### 💡 Why cURL Commands Are Better for Production Testing
+
+- ✅ **Test the actual deployed server** (not local Python client)
+- ✅ **Verify HTTP endpoints** are working correctly
+- ✅ **Check network connectivity** and port accessibility
+- ✅ **Test real-world usage** scenarios
+- ✅ **Easy to automate** in CI/CD pipelines
+- ✅ **No Python dependencies** required on target machine
+
+### 🔍 Testing Checklist
+
+Before running tests, ensure:
+- [ ] VLLM server is running (`./deploy.sh`)
+- [ ] Model is loaded and accessible
+- [ ] Ports 8000 and 9000 are accessible
+- [ ] No firewall blocking the connections
 
 ## 🛠️ Troubleshooting
 
@@ -245,6 +393,8 @@ docker exec -it vllm_server bash
 
 **Memory Issues**: Increase Docker memory allocation (minimum 4GB)
 **Port Conflicts**: Ensure ports 8000, 9000, 9090, 3000 are available
+
+> **💡 Tip**: Use `./deploy.sh --logs` to view real-time logs or `./deploy.sh --clean` to completely reset the deployment if you encounter issues.
 
 ## 📚 References
 
